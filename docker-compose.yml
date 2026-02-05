@@ -1,0 +1,45 @@
+name: bloomery
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: bmr-db
+    ports:
+      - 5432:${POSTGRES_PORT}
+    volumes:
+      - bmr-data:/var/lib/postgresql/data
+      - ./_entrypoint:/docker-entrypoint-initdb.d
+    environment:
+      - TZ=Asia/Bangkok
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_APP_USER=${POSTGRES_APP_USER}
+      - POSTGRES_APP_PASSWORD=${POSTGRES_APP_PASSWORD}
+    networks:
+      - bmr-net
+  backend:
+    container_name: bmr-backend
+    build: ./backend
+    ports:
+      - ${PORT}:3000
+    networks:
+      - bmr-net
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_APP_USER=${POSTGRES_APP_USER}
+      - POSTGRES_APP_PASSWORD=${POSTGRES_APP_PASSWORD}
+    volumes:
+      - ./logs:/app/logs
+    post_start:
+      - command: [
+            "sh",
+            "-c",
+            'npm run db:migrate | awk ''{ print strftime("[%Y-%m-%d %H:%M:%S]"), $0; fflush(); }'' | tee -a /app/logs/migration.log',
+          ]
+volumes:
+  bmr-data:
+networks:
+  bmr-net:
+    external: true  
